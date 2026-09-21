@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document Uploader</title>
+
+  <style>
+    /* ---------- Colors (change these to restyle the whole page) ---------- */
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --accent: #7c3aed;
+      --bg: #f3f4f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --ok: #047857;
+      --ok-bg: #d1fae5;
+      --bad: #b91c1c;
+      --bad-bg: #fee2e2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ---------- Header ---------- */
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      text-align: center;
+      padding: 48px 20px 96px;
+    }
+    header h1 { font-size: 2rem; margin-bottom: 10px; }
+    header p { max-width: 560px; margin: 0 auto; opacity: 0.9; line-height: 1.5; }
+
+    .chips {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 8px; margin-top: 20px;
+    }
+    .chips span {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 6px 14px; border-radius: 999px; font-size: 0.85rem;
+    }
+
+    /* ---------- Layout ---------- */
+    main { max-width: 900px; margin: -56px auto 40px; padding: 0 16px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      transition: opacity 0.3s;
+    }
+    /* Greyed out until the person has registered */
+    .grid.locked { opacity: 0.45; pointer-events: none; }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ---------- Cards ---------- */
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-head { display: flex; align-items: center; gap: 12px; }
+    .icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      background: #eef2ff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+    }
+    .card-head h2 { font-size: 1.15rem; }
+    .hint { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+    /* ---------- Register box ---------- */
+    .name-card { margin-bottom: 20px; }
+    .name-card label { font-weight: 600; font-size: 1.05rem; }
+    .name-card input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      transition: 0.2s;
+    }
+    .name-card input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+    }
+    .name-card input.error { border-color: var(--bad); }
+    #registerNoBox { text-transform: uppercase; }
+    #registerNoBox::placeholder { text-transform: none; }
+    #registerForm { display: flex; flex-direction: column; gap: 12px; }
+
+    .registered {
+      background: #eef2ff;
+      border: 2px solid #c7d2fe;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .reg-label { display: block; color: var(--muted); font-size: 0.85rem; }
+    .reg-number {
+      display: block;
+      font-size: 2rem;
+      color: var(--primary);
+      letter-spacing: 2px;
+      margin: 4px 0;
+      word-break: break-all;
+    }
+    .reg-name { font-weight: 600; margin-bottom: 6px; }
+    .link-btn {
+      background: none;
+      border: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .link-btn:hover { color: var(--primary); }
+
+    /* ---------- Drop area ---------- */
+    .dropzone {
+      border: 2px dashed #c7c9d9;
+      border-radius: 12px;
+      padding: 28px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: #eef2ff;
+    }
+    .drop-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .dropzone small { color: var(--muted); }
+
+    /* ---------- Selected file box ---------- */
+    .selected {
+      display: flex; align-items: center; gap: 12px;
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .selected img {
+      width: 52px; height: 52px; object-fit: cover; border-radius: 8px;
+    }
+    .selected-info { display: flex; flex-direction: column; min-width: 0; }
+    .selected-info strong {
+      font-size: 0.9rem; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .selected-info span { color: var(--muted); font-size: 0.8rem; }
+
+    /* ---------- Button ---------- */
+    .btn {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff; border: 0; border-radius: 10px;
+      padding: 12px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+    }
+    .btn:disabled { background: #d1d5db; cursor: not-allowed; }
+
+    /* ---------- Messages ---------- */
+    .status { padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; }
+    .status.ok { background: var(--ok-bg); color: var(--ok); }
+    .status.bad { background: var(--bad-bg); color: var(--bad); }
+    .status.loading { background: #eef2ff; color: var(--primary-dark); }
+
+    /* ---------- Result ---------- */
+    .result {
+      text-align: center;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .result img {
+      max-width: 100%; max-height: 220px;
+      border-radius: 10px; border: 1px solid var(--border); background: #fff;
+    }
+    .stats {
+      display: flex; justify-content: center; flex-wrap: wrap;
+      gap: 8px; margin-top: 12px;
+    }
+    .pill {
+      background: #f3f4f6; border-radius: 999px;
+      padding: 5px 12px; font-size: 0.82rem; color: #374151;
+    }
+    .pill.good { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+
+    .note { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 24px; }
+
+    /* ---------- Footer with admin link ---------- */
+    footer { text-align: center; padding: 10px 16px 40px; }
+    .admin-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border: 2px solid var(--primary);
+      border-radius: 999px;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: 0.2s;
+    }
+    .admin-link:hover {
+      background: var(--primary);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+    }
+    footer small { display: block; margin-top: 10px; color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Document Uploader</h1>
+    <p>Register with your register number, then upload your photo and signature. Each one is converted to JPG and compressed to 15 KB or less.</p>
+    <div class="chips">
+      <span>Any image format</span>
+      <span>Auto-converted to JPG</span>
+      <span>Max 15 KB</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Step 1: register with your own register number -->
+    <section class="card name-card">
+      <label for="registerNoBox">Step 1: Register</label>
+
+      <div id="registerForm">
+        <input type="text" id="registerNoBox" maxlength="20"
+               placeholder="Enter your register number" autocomplete="off">
+        <input type="text" id="personName" maxlength="100"
+               placeholder="Enter your full name" autocomplete="name">
+        <button type="button" class="btn" id="registerBtn">Register</button>
+        <p class="hint">Type your register number carefully. Once registered, it cannot be changed.</p>
+      </div>
+
+      <div class="registered" id="registeredBox" hidden>
+        <span class="reg-label">Your Register Number</span>
+        <strong class="reg-number" id="regNumber"></strong>
+        <div class="reg-name" id="regName"></div>
+        <p class="hint">This register number is locked and cannot be changed.</p>
+        <button type="button" class="link-btn" id="newPersonBtn">Not you? Register a different person</button>
+      </div>
+
+      <div class="status" id="register-status" hidden></div>
+    </section>
+
+    <!-- Step 2: the two upload cards (created by the script below) -->
+    <div class="grid locked" id="cards"></div>
+    <p class="note" id="lockNote">Register above to unlock the upload boxes.</p>
+    <p class="note">Your compressed files are saved in the MySQL database.</p>
+  </main>
+
+  <footer>
+    <a class="admin-link" href="/admin">🔒 Admin Login</a>
+    <small>For authorized administrators only</small>
+  </footer>
+
+  <script>
+    // The register number of the person using this page (set after registering)
+    let registerNo = null;
+
+    // Same rule as the server: 4 to 20 letters, numbers, - or /
+    const REGISTER_NO_RULE = /^[A-Z0-9\-\/]{4,20}$/;
+
+    // The two documents this page uploads
+    const documents = [
+      { type: 'photo',     title: 'Photo',     icon: '📷', hint: 'Clear face, plain background' },
+      { type: 'signature', title: 'Signature', icon: '✍️', hint: 'Dark pen on white paper' }
+    ];
+
+    // Build a card for each document
+    const cards = document.getElementById('cards');
+
+    documents.forEach(function (doc) {
+      cards.insertAdjacentHTML('beforeend', `
+        <section class="card">
+          <div class="card-head">
+            <div class="icon">${doc.icon}</div>
+            <div>
+              <h2>${doc.title}</h2>
+              <p class="hint">${doc.hint}</p>
+            </div>
+          </div>
+
+          <div class="dropzone" id="${doc.type}-drop">
+            <div class="drop-icon">⬆️</div>
+            <p><strong>Click to choose</strong> or drag and drop</p>
+            <small>PNG, JPG, WEBP or GIF (up to 10 MB)</small>
+          </div>
+          <input type="file" id="${doc.type}" accept="image/*" hidden>
+
+          <div class="selected" id="${doc.type}-selected" hidden>
+            <img id="${doc.type}-thumb" alt="Selected image">
+            <div class="selected-info">
+              <strong id="${doc.type}-name"></strong>
+              <span id="${doc.type}-size"></span>
+            </div>
+          </div>
+
+          <button class="btn" id="${doc.type}-btn" data-label="Upload ${doc.title}" disabled>
+            Upload ${doc.title}
+          </button>
+
+          <div class="status" id="${doc.type}-status" hidden></div>
+
+          <div class="result" id="${doc.type}-result" hidden>
+            <img id="${doc.type}-preview" alt="Compressed result">
+            <div class="stats">
+              <span class="pill">Before: <b id="${doc.type}-before"></b></span>
+              <span class="pill good">After: <b id="${doc.type}-after"></b></span>
+              <span class="pill">Format: JPG</span>
+            </div>
+          </div>
+        </section>
+      `);
+
+      setupCard(doc.type);
+    });
+
+    // ---------------- Registration ----------------
+    const regNoBox = document.getElementById('registerNoBox');
+    const nameBox = document.getElementById('personName');
+    const registerBtn = document.getElementById('registerBtn');
+    const registerForm = document.getElementById('registerForm');
+    const registeredBox = document.getElementById('registeredBox');
+    const lockNote = document.getElementById('lockNote');
+
+    // Remove the red border when the person starts typing
+    regNoBox.addEventListener('input', function () { regNoBox.classList.remove('error'); });
+    nameBox.addEventListener('input', function () { nameBox.classList.remove('error'); });
+
+    registerBtn.addEventListener('click', registerPerson);
+    document.getElementById('newPersonBtn').addEventListener('click', newPerson);
+
+    // Register with the number the person typed
+    async function registerPerson() {
+      const no = regNoBox.value.trim().toUpperCase();
+      const name = nameBox.value.trim();
+
+      if (!REGISTER_NO_RULE.test(no)) {
+        regNoBox.classList.add('error');
+        regNoBox.focus();
+        showStatus('register', 'bad', 'Enter a valid register number (4 to 20 letters, numbers, - or /).');
+        return;
+      }
+      if (name.length < 2) {
+        nameBox.classList.add('error');
+        nameBox.focus();
+        showStatus('register', 'bad', 'Please enter your full name (at least 2 letters).');
+        return;
+      }
+
+      // Ask to double-check, because the number cannot be changed later
+      const ok = confirm('Your register number will be:\n\n' + no +
+                         '\n\nIt cannot be changed after registering. Is it correct?');
+      if (!ok) return;
+
+      registerBtn.disabled = true;
+      registerBtn.textContent = 'Registering...';
+
+      try {
+        const res = await fetch('/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ registerNo: no, personName: name })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showStatus('register', 'bad', data.error);
+          return;
+        }
+
+        document.getElementById('register-status').hidden = true;
+        setRegistered(data.registerNo, data.personName);
+
+        if (data.existing) {
+          showStatus('register', 'ok', 'Welcome back! This register number was already registered.');
+        }
+      } catch (e) {
+        showStatus('register', 'bad', 'Could not reach the server. Is it running?');
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = 'Register';
+      }
+    }
+
+    // Show the locked register number and unlock the upload boxes
+    function setRegistered(no, name) {
+      registerNo = no;
+      document.getElementById('regNumber').textContent = no;
+      document.getElementById('regName').textContent = name;
+      registerForm.hidden = true;
+      registeredBox.hidden = false;
+      cards.classList.remove('locked');
+      lockNote.hidden = true;
+
+      // Remember the person if the page is refreshed
+      try {
+        localStorage.setItem('registration', JSON.stringify({ registerNo: no, personName: name }));
+      } catch (e) {}
+    }
+
+    // For a different person using the same computer (the old register number stays saved in MySQL)
+    function newPerson() {
+      try { localStorage.removeItem('registration'); } catch (e) {}
+      location.reload();
+    }
+
+    // When the page opens, restore the registration if this person already registered
+    try {
+      const saved = JSON.parse(localStorage.getItem('registration') || 'null');
+      if (saved && saved.registerNo) setRegistered(saved.registerNo, saved.personName);
+    } catch (e) {}
+
+    // ---------------- Upload cards ----------------
+
+    // Connect the clicks and drag-and-drop for one card
+    function setupCard(type) {
+      const input = document.getElementById(type);
+      const drop = document.getElementById(type + '-drop');
+      const btn = document.getElementById(type + '-btn');
+
+      // Clicking the box opens the file chooser
+      drop.addEventListener('click', function () { input.click(); });
+
+      // When a file is chosen
+      input.addEventListener('change', function () { showSelected(type); });
+
+      // Drag and drop highlight
+      ['dragenter', 'dragover'].forEach(function (name) {
+        drop.addEventListener(name, function (e) {
+          e.preventDefault();
+          drop.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        drop.addEventListener(name, function (e) {
+          e.preventDefault();
+          drop.classList.remove('dragover');
+        });
+      });
+
+      // When a file is dropped on the box
+      drop.addEventListener('drop', function (e) {
+        if (e.dataTransfer.files.length > 0) {
+          input.files = e.dataTransfer.files;
+          showSelected(type);
+        }
+      });
+
+      // Upload button
+      btn.addEventListener('click', function () { uploadFile(type); });
+    }
+
+    // Show the chosen file's name, size and small preview
+    function showSelected(type) {
+      const file = document.getElementById(type).files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showStatus(type, 'bad', 'Please choose an image file.');
+        return;
+      }
+
+      document.getElementById(type + '-thumb').src = URL.createObjectURL(file);
+      document.getElementById(type + '-name').textContent = file.name;
+      document.getElementById(type + '-size').textContent = formatSize(file.size);
+      document.getElementById(type + '-selected').hidden = false;
+      document.getElementById(type + '-btn').disabled = false;
+
+      // Clear any old message or result
+      document.getElementById(type + '-status').hidden = true;
+      document.getElementById(type + '-result').hidden = true;
+    }
+
+    // Send the file (and the register number) to the server
+    async function uploadFile(type) {
+      const file = document.getElementById(type).files[0];
+      const btn = document.getElementById(type + '-btn');
+
+      if (!file) return;
+
+      if (!registerNo) {
+        showStatus(type, 'bad', 'Please register first.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('registerNo', registerNo);   // these must be added BEFORE the file
+      formData.append('docType', type);
+      formData.append('file', file);
+
+      btn.disabled = true;
+      btn.textContent = 'Compressing...';
+      showStatus(type, 'loading', 'Compressing and uploading, please wait...');
+
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.error) {
+          showStatus(type, 'bad', 'Error: ' + data.error);
+          if (data.code === 'NOT_REGISTERED') {
+            try { localStorage.removeItem('registration'); } catch (e) {}
+          }
+          return;
+        }
+
+        // Show the compressed image and the sizes
+        document.getElementById(type + '-preview').src = data.previewUrl;
+        document.getElementById(type + '-before').textContent = data.originalSizeKB + ' KB';
+        document.getElementById(type + '-after').textContent = data.compressedSizeKB + ' KB';
+        document.getElementById(type + '-result').hidden = false;
+
+        showStatus(type, 'ok', 'Saved for Register No. ' + data.registerNo + ' (' + data.personName + ').');
+      } catch (e) {
+        showStatus(type, 'bad', 'Could not reach the server. Is it running?');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.label;
+      }
+    }
+
+    // Show a message under a button or box (kind = ok, bad or loading)
+    function showStatus(id, kind, message) {
+      const box = document.getElementById(id + '-status');
+      box.className = 'status ' + kind;
+      box.textContent = message;
+      box.hidden = false;
+    }
+
+    // Turn bytes into KB or MB text
+    function formatSize(bytes) {
+      if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' KB'.replace('KB', 'MB');
+      return (bytes / 1024).toFixed(1) + ' KB';
+    }
+  </script>
+</body>
+</html>

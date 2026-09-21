@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin - Uploaded Documents</title>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --accent: #7c3aed;
+      --bg: #f3f4f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 28px 20px 80px;
+    }
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.6rem; }
+    header p { opacity: 0.9; font-size: 0.9rem; margin-top: 4px; }
+    #logout {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      padding: 8px 18px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    #logout:hover { background: rgba(255, 255, 255, 0.3); }
+
+    main { max-width: 900px; margin: -48px auto 40px; padding: 0 16px; }
+
+    .search-box {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      margin-bottom: 20px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+    }
+    .search-box input:focus { border-color: var(--primary); }
+    #count { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+
+    .person {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      margin-bottom: 20px;
+    }
+    .person h2 { font-size: 1.15rem; margin-bottom: 14px; }
+
+    .docs { display: flex; flex-wrap: wrap; gap: 16px; }
+    .doc {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      width: 220px;
+      text-align: center;
+    }
+    .doc img {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: 8px;
+      background: #f9fafb;
+    }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: var(--primary);
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .meta { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .doc a {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .doc a:hover { text-decoration: underline; }
+    .empty { text-align: center; color: var(--muted); padding: 30px; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>Admin - Uploaded Documents</h1>
+        <p>Only visible after logging in with the pass key.</p>
+      </div>
+      <button id="logout">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Search by name or register number...">
+      <p id="count"></p>
+    </div>
+
+    <div id="list"></div>
+  </main>
+
+  <script>
+    const list = document.getElementById('list');
+    const count = document.getElementById('count');
+    const search = document.getElementById('search');
+
+    // Small helper to create an element with a class
+    function make(tag, className) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      return el;
+    }
+
+    // Ask the server for the documents (optionally filtered by name)
+    async function loadDocuments(name) {
+      try {
+        const res = await fetch('/admin/api/documents?name=' + encodeURIComponent(name || ''));
+
+        // Login expired: reload, and the login screen appears
+        if (res.status === 401) {
+          location.reload();
+          return;
+        }
+
+        const rows = await res.json();
+        if (rows.error) {
+          count.textContent = 'Error: ' + rows.error;
+          return;
+        }
+        showDocuments(rows);
+      } catch (e) {
+        count.textContent = 'Could not reach the server. Is it running?';
+      }
+    }
+
+    // Group the documents by person and draw them
+    function showDocuments(rows) {
+      list.innerHTML = '';
+
+      const groups = {};
+      rows.forEach(function (row) {
+        if (!groups[row.person_name]) groups[row.person_name] = [];
+        groups[row.person_name].push(row);
+      });
+
+      const names = Object.keys(groups);
+      count.textContent = names.length + ' people, ' + rows.length + ' files';
+
+      if (names.length === 0) {
+        const empty = make('p', 'empty');
+        empty.textContent = 'No uploaded documents found.';
+        list.appendChild(empty);
+        return;
+      }
+
+      names.forEach(function (name) {
+        const person = make('section', 'person');
+
+        const title = make('h2');
+        title.textContent = name || '(No name)';
+        person.appendChild(title);
+
+        const docs = make('div', 'docs');
+
+        groups[name].forEach(function (row) {
+          const box = make('div', 'doc');
+
+          const img = make('img');
+          img.src = '/admin/document/' + row.id;
+          img.alt = row.doc_type;
+          box.appendChild(img);
+
+          const badge = make('span', 'badge');
+          badge.textContent = row.doc_type === 'photo' ? 'Photo' : 'Signature';
+          box.appendChild(badge);
+
+          const meta = make('p', 'meta');
+          meta.textContent = 'ID ' + row.id + ' | ' + (row.compressed_size / 1024).toFixed(1) +
+                             ' KB | ' + new Date(row.uploaded_at).toLocaleString();
+          box.appendChild(meta);
+
+          const link = make('a');
+          link.href = '/admin/document/' + row.id;
+          link.download = (name || 'file') + '_' + row.doc_type + '.jpg';
+          link.textContent = 'Download';
+          box.appendChild(link);
+
+          docs.appendChild(box);
+        });
+
+        person.appendChild(docs);
+        list.appendChild(person);
+      });
+    }
+
+    // Search as the admin types (waits a moment after typing stops)
+    let timer;
+    search.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { loadDocuments(search.value.trim()); }, 300);
+    });
+
+    // Log out
+    document.getElementById('logout').addEventListener('click', async function () {
+      await fetch('/admin/logout', { method: 'POST' });
+      location.href = '/admin';
+    });
+
+    // Load everything when the page opens
+    loadDocuments('');
+  </script>
+</body>
+</html>
