@@ -7,6 +7,8 @@ USE document_uploader;
 CREATE TABLE IF NOT EXISTS people (
   register_no VARCHAR(50) NOT NULL PRIMARY KEY,
   person_name VARCHAR(100) NOT NULL,
+  course VARCHAR(100) DEFAULT NULL,
+  year_of_study VARCHAR(20) DEFAULT NULL,
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -21,5 +23,5 @@ CREATE TABLE IF NOT EXISTS documents (
   file_data MEDIUMBLOB NOT NULL,
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_person_doc (register_no, doc_type),
-  CONSTRAINT fk_documents_people FOREIGN KEY (register_no) REFERENCES people (register_no) ON DELETE CASCADE
+  CONSTRAINT fk_documents_people FOREIGN KEY (register_no) REFERENCES people (register_no) ON DELETE CASCADE ON UPDATE CASCADE
 );
