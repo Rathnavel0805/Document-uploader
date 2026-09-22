@@ -90,7 +90,7 @@
     /* ---------- Register box ---------- */
     .name-card { margin-bottom: 20px; }
     .name-card label { font-weight: 600; font-size: 1.05rem; }
-    .name-card input {
+    .name-card input, .name-card select {
       width: 100%;
       padding: 12px 14px;
       font-size: 1rem;
@@ -99,11 +99,16 @@
       outline: none;
       transition: 0.2s;
     }
-    .name-card input:focus {
+    .name-card select {
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .name-card input:focus, .name-card select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
     }
-    .name-card input.error { border-color: var(--bad); }
+    .name-card input.error, .name-card select.error { border-color: var(--bad); }
     #registerNoBox { text-transform: uppercase; }
     #registerNoBox::placeholder { text-transform: none; }
     #registerForm { display: flex; flex-direction: column; gap: 12px; }
@@ -114,6 +119,16 @@
       border-radius: 12px;
       padding: 16px;
       text-align: center;
+    }
+    .reg-course-badge {
+      display: inline-block;
+      background: #e0e7ff;
+      color: var(--primary-dark);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 4px 0 10px;
     }
     .reg-label { display: block; color: var(--muted); font-size: 0.85rem; }
     .reg-number {
@@ -257,14 +272,46 @@
                placeholder="Enter your register number" autocomplete="off">
         <input type="text" id="personName" maxlength="100"
                placeholder="Enter your full name" autocomplete="name">
+        <select id="courseSelect">
+          <option value="">-- Select Course (PG / UG) --</option>
+          <optgroup label="🎓 Postgraduate (PG) Courses">
+            <option value="MCA">MCA (Master of Computer Applications)</option>
+            <option value="MBA">MBA (Master of Business Administration)</option>
+            <option value="M.Tech">M.Tech (Master of Technology)</option>
+            <option value="M.Sc">M.Sc (Master of Science)</option>
+            <option value="M.Com">M.Com (Master of Commerce)</option>
+            <option value="M.A">M.A (Master of Arts)</option>
+            <option value="Other PG">Other PG Course</option>
+          </optgroup>
+          <optgroup label="📚 Undergraduate (UG) Courses">
+            <option value="BCA">BCA (Bachelor of Computer Applications)</option>
+            <option value="B.Tech">B.Tech (Bachelor of Technology)</option>
+            <option value="B.E">B.E (Bachelor of Engineering)</option>
+            <option value="B.Sc">B.Sc (Bachelor of Science)</option>
+            <option value="B.Com">B.Com (Bachelor of Commerce)</option>
+            <option value="BBA">BBA (Bachelor of Business Administration)</option>
+            <option value="B.A">B.A (Bachelor of Arts)</option>
+            <option value="Other UG">Other UG Course</option>
+          </optgroup>
+        </select>
+        <input type="text" id="customCourseBox" maxlength="100"
+               placeholder="Enter your specific course name" hidden>
+        <select id="yearSelect">
+          <option value="">-- Select Year of Study --</option>
+          <option value="1st Year">1st Year</option>
+          <option value="2nd Year">2nd Year</option>
+          <option value="3rd Year">3rd Year</option>
+          <option value="4th Year">4th Year</option>
+        </select>
         <button type="button" class="btn" id="registerBtn">Register</button>
-        <p class="hint">Type your register number carefully. Once registered, it cannot be changed.</p>
+        <p class="hint">Type your register number and details carefully. Once registered, it cannot be changed.</p>
       </div>
 
       <div class="registered" id="registeredBox" hidden>
         <span class="reg-label">Your Register Number</span>
         <strong class="reg-number" id="regNumber"></strong>
         <div class="reg-name" id="regName"></div>
+        <div class="reg-course-badge" id="regCourseYear"></div>
         <p class="hint">This register number is locked and cannot be changed.</p>
         <button type="button" class="link-btn" id="newPersonBtn">Not you? Register a different person</button>
       </div>
@@ -313,7 +360,7 @@
           <div class="dropzone" id="${doc.type}-drop">
             <div class="drop-icon">⬆️</div>
             <p><strong>Click to choose</strong> or drag and drop</p>
-            <small>PNG, JPG, WEBP or GIF (up to 10 MB)</small>
+            <small>PNG, JPG, WEBP or GIF </small>
           </div>
           <input type="file" id="${doc.type}" accept="image/*" hidden>
 
@@ -348,22 +395,44 @@
     // ---------------- Registration ----------------
     const regNoBox = document.getElementById('registerNoBox');
     const nameBox = document.getElementById('personName');
+    const courseSelect = document.getElementById('courseSelect');
+    const customCourseBox = document.getElementById('customCourseBox');
+    const yearSelect = document.getElementById('yearSelect');
     const registerBtn = document.getElementById('registerBtn');
     const registerForm = document.getElementById('registerForm');
     const registeredBox = document.getElementById('registeredBox');
     const lockNote = document.getElementById('lockNote');
 
-    // Remove the red border when the person starts typing
+    // Toggle custom course input when "Other" options are selected
+    courseSelect.addEventListener('change', function () {
+      courseSelect.classList.remove('error');
+      if (courseSelect.value === 'Other PG' || courseSelect.value === 'Other UG') {
+        customCourseBox.hidden = false;
+        customCourseBox.focus();
+      } else {
+        customCourseBox.hidden = true;
+        customCourseBox.value = '';
+      }
+    });
+
+    // Remove the red border when typing or selecting
     regNoBox.addEventListener('input', function () { regNoBox.classList.remove('error'); });
     nameBox.addEventListener('input', function () { nameBox.classList.remove('error'); });
+    yearSelect.addEventListener('change', function () { yearSelect.classList.remove('error'); });
+    customCourseBox.addEventListener('input', function () { customCourseBox.classList.remove('error'); });
 
     registerBtn.addEventListener('click', registerPerson);
     document.getElementById('newPersonBtn').addEventListener('click', newPerson);
 
-    // Register with the number the person typed
+    // Register with the details the person entered
     async function registerPerson() {
       const no = regNoBox.value.trim().toUpperCase();
       const name = nameBox.value.trim();
+      let course = courseSelect.value;
+      if (course === 'Other PG' || course === 'Other UG') {
+        course = customCourseBox.value.trim() || course;
+      }
+      const yearOfStudy = yearSelect.value;
 
       if (!REGISTER_NO_RULE.test(no)) {
         regNoBox.classList.add('error');
@@ -377,10 +446,26 @@
         showStatus('register', 'bad', 'Please enter your full name (at least 2 letters).');
         return;
       }
+      if (!course) {
+        courseSelect.classList.add('error');
+        courseSelect.focus();
+        showStatus('register', 'bad', 'Please select your course.');
+        return;
+      }
+      if (!yearOfStudy) {
+        yearSelect.classList.add('error');
+        yearSelect.focus();
+        showStatus('register', 'bad', 'Please select your year of study.');
+        return;
+      }
 
-      // Ask to double-check, because the number cannot be changed later
-      const ok = confirm('Your register number will be:\n\n' + no +
-                         '\n\nIt cannot be changed after registering. Is it correct?');
+      // Ask to double-check
+      const ok = confirm('Please confirm your registration details:\n\n' +
+                         'Register No: ' + no + '\n' +
+                         'Name: ' + name + '\n' +
+                         'Course: ' + course + '\n' +
+                         'Year of Study: ' + yearOfStudy + '\n\n' +
+                         'Once registered, this cannot be changed. Is this correct?');
       if (!ok) return;
 
       registerBtn.disabled = true;
@@ -390,7 +475,12 @@
         const res = await fetch('/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ registerNo: no, personName: name })
+          body: JSON.stringify({
+            registerNo: no,
+            personName: name,
+            course: course,
+            yearOfStudy: yearOfStudy
+          })
         });
         const data = await res.json();
 
@@ -400,7 +490,7 @@
         }
 
         document.getElementById('register-status').hidden = true;
-        setRegistered(data.registerNo, data.personName);
+        setRegistered(data.registerNo, data.personName, data.course, data.yearOfStudy);
 
         if (data.existing) {
           showStatus('register', 'ok', 'Welcome back! This register number was already registered.');
@@ -413,11 +503,21 @@
       }
     }
 
-    // Show the locked register number and unlock the upload boxes
-    function setRegistered(no, name) {
+    // Show the locked register info and unlock the upload boxes
+    function setRegistered(no, name, course, yearOfStudy) {
       registerNo = no;
       document.getElementById('regNumber').textContent = no;
       document.getElementById('regName').textContent = name;
+      
+      const badgeText = [course, yearOfStudy].filter(Boolean).join(' • ');
+      const badgeEl = document.getElementById('regCourseYear');
+      if (badgeText) {
+        badgeEl.textContent = badgeText;
+        badgeEl.hidden = false;
+      } else {
+        badgeEl.hidden = true;
+      }
+
       registerForm.hidden = true;
       registeredBox.hidden = false;
       cards.classList.remove('locked');
@@ -425,11 +525,16 @@
 
       // Remember the person if the page is refreshed
       try {
-        localStorage.setItem('registration', JSON.stringify({ registerNo: no, personName: name }));
+        localStorage.setItem('registration', JSON.stringify({
+          registerNo: no,
+          personName: name,
+          course: course || '',
+          yearOfStudy: yearOfStudy || ''
+        }));
       } catch (e) {}
     }
 
-    // For a different person using the same computer (the old register number stays saved in MySQL)
+    // For a different person using the same computer
     function newPerson() {
       try { localStorage.removeItem('registration'); } catch (e) {}
       location.reload();
@@ -438,7 +543,9 @@
     // When the page opens, restore the registration if this person already registered
     try {
       const saved = JSON.parse(localStorage.getItem('registration') || 'null');
-      if (saved && saved.registerNo) setRegistered(saved.registerNo, saved.personName);
+      if (saved && saved.registerNo) {
+        setRegistered(saved.registerNo, saved.personName, saved.course, saved.yearOfStudy);
+      }
     } catch (e) {}
 
     // ---------------- Upload cards ----------------
